@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: potluck
+data:
+  DATABASE_URL: postgresql://potluck:potluck@postgres:5432/potluck
