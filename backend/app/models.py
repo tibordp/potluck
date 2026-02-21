@@ -93,6 +93,7 @@ class MenuSlot(Base):
     recipe_id: Mapped[int] = mapped_column(
         Integer, ForeignKey("recipes.id", ondelete="CASCADE"), nullable=False
     )
+    servings_override: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     menu: Mapped["WeeklyMenu"] = relationship(back_populates="slots")
     recipe: Mapped["Recipe"] = relationship()

@@ -34,7 +34,8 @@ def get_shopping_list(
     aggregated: dict[tuple[int, str], dict] = {}
     for slot in menu.slots:
         recipe = slot.recipe
-        scale = menu.servings / recipe.servings if recipe.servings else 1
+        effective_servings = slot.servings_override or menu.servings
+        scale = effective_servings / recipe.servings if recipe.servings else 1
 
         for ri in recipe.ingredients:
             norm_amount, norm_unit = normalize(float(ri.amount) * scale, ri.unit)

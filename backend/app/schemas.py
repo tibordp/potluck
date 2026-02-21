@@ -106,6 +106,7 @@ class MenuSlotOut(BaseModel):
     day: int
     meal: str
     recipe_id: int
+    servings_override: int | None = None
     recipe: RecipeSummary
 
     model_config = {"from_attributes": True}
@@ -129,6 +130,7 @@ class MenuGenerateRequest(BaseModel):
 class MenuSlotUpdate(BaseModel):
     recipe_id: int | None = None
     reroll: bool = False
+    servings_override: int | None = None
 
 
 # --- Shopping List ---

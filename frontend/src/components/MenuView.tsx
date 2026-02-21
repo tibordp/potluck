@@ -113,11 +113,83 @@ function RecipePicker({
   );
 }
 
+function ServingsBadge({
+  slot,
+  menuServings,
+  onUpdate,
+}: {
+  slot: Menu['slots'][number];
+  menuServings: number;
+  onUpdate: (servingsOverride: number | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const effective = slot.servings_override ?? menuServings;
+  const isOverridden = slot.servings_override != null;
+
+  const handleOpen = () => {
+    setValue(String(effective));
+    setEditing(true);
+  };
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  const handleCommit = () => {
+    setEditing(false);
+    const num = parseInt(value, 10);
+    if (!value.trim() || isNaN(num) || num < 1 || num === menuServings) {
+      onUpdate(null);
+    } else {
+      onUpdate(num);
+    }
+  };
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="number"
+        min={1}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onBlur={handleCommit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleCommit();
+          if (e.key === 'Escape') setEditing(false);
+        }}
+        className="w-12 text-xs text-center border border-brand-300 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
+      />
+    );
+  }
+
+  return (
+    <button
+      onClick={handleOpen}
+      className={`text-xs px-1.5 py-0.5 rounded transition-colors shrink-0 ${
+        isOverridden
+          ? 'bg-brand-100 text-brand-700 font-semibold'
+          : 'text-gray-400 hover:bg-gray-100 hover:text-gray-600'
+      }`}
+      title={
+        isOverridden
+          ? `Override: ${effective} servings (default: ${menuServings})`
+          : `${effective} servings (click to override)`
+      }
+    >
+      x{effective}
+    </button>
+  );
+}
+
 export default function MenuView() {
   const [menu, setMenu] = useState<Menu | null>(null);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
-  const [servings, setServings] = useState(4);
+  const [servings, setServings] = useState<number | ''>(4);
   const [pickerSlotId, setPickerSlotId] = useState<number | null>(null);
   const toast = useToast();
 
@@ -130,7 +202,7 @@ export default function MenuView() {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const m = await generateMenu(getNextMonday(), servings);
+      const m = await generateMenu(getNextMonday(), servings || 4);
       setMenu(m);
       toast('Menu generated!');
     } catch (err) {
@@ -155,6 +227,12 @@ export default function MenuView() {
     toast('Recipe changed');
   };
 
+  const handleServingsOverride = async (slotId: number, servingsOverride: number | null) => {
+    if (!menu) return;
+    const updated = await updateMenuSlot(menu.id, slotId, { servings_override: servingsOverride });
+    setMenu(updated);
+  };
+
   return (
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -165,7 +243,7 @@ export default function MenuView() {
             <input
               type="number"
               value={servings}
-              onChange={(e) => setServings(Number(e.target.value))}
+              onChange={(e) => setServings(e.target.value ? Number(e.target.value) : '')}
               className="w-12 text-sm focus:outline-none"
               min={1}
             />
@@ -225,12 +303,19 @@ export default function MenuView() {
                   </div>
                   <div className="p-3">
                     <div className="flex items-center justify-between group">
-                      <Link
-                        to={`/recipes/${slot.recipe.id}`}
-                        className="text-sm font-medium text-gray-700 hover:text-brand-600 transition-colors truncate"
-                      >
-                        {slot.recipe.name}
-                      </Link>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <Link
+                          to={`/recipes/${slot.recipe.id}`}
+                          className="text-sm font-medium text-gray-700 hover:text-brand-600 transition-colors truncate"
+                        >
+                          {slot.recipe.name}
+                        </Link>
+                        <ServingsBadge
+                          slot={slot}
+                          menuServings={menu.servings}
+                          onUpdate={(v) => handleServingsOverride(slot.id, v)}
+                        />
+                      </div>
                       <button
                         onClick={() => setPickerSlotId(isPickerOpen ? null : slot.id)}
                         className={`text-xs px-2.5 py-1 rounded-lg transition-all shrink-0 ml-2 font-medium ${

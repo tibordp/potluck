@@ -46,6 +46,7 @@ export interface MenuSlot {
   day: number;
   meal: string;
   recipe_id: number;
+  servings_override: number | null;
   recipe: RecipeSummary;
 }
 

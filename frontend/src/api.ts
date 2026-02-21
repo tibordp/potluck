@@ -143,7 +143,7 @@ export const getCurrentMenu = () => request<Menu | null>('/api/menus/current');
 export const updateMenuSlot = (
   menuId: number,
   slotId: number,
-  data: { recipe_id?: number; reroll?: boolean }
+  data: { recipe_id?: number; reroll?: boolean; servings_override?: number | null }
 ) =>
   request<Menu>(`/api/menus/${menuId}/slots/${slotId}`, {
     method: 'PUT',

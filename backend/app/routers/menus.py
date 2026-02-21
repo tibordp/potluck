@@ -90,5 +90,8 @@ def update_slot(
     elif body.recipe_id is not None:
         slot.recipe_id = body.recipe_id
 
+    if "servings_override" in body.model_fields_set:
+        slot.servings_override = body.servings_override
+
     db.commit()
     return _load_menu(db, menu_id)

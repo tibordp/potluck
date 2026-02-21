@@ -164,7 +164,7 @@ export default function RecipeForm() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [servings, setServings] = useState(4);
+  const [servings, setServings] = useState<number | ''>(4);
   const [prepTime, setPrepTime] = useState<number | ''>('');
   const [cookTime, setCookTime] = useState<number | ''>('');
   const [instructions, setInstructions] = useState('');
@@ -268,7 +268,7 @@ export default function RecipeForm() {
       const data = {
         name,
         description: description || undefined,
-        servings,
+        servings: servings || 1,
         prep_time_minutes: prepTime || undefined,
         cook_time_minutes: cookTime || undefined,
         instructions,
@@ -332,7 +332,7 @@ export default function RecipeForm() {
             <input
               type="number"
               value={servings}
-              onChange={(e) => setServings(Number(e.target.value))}
+              onChange={(e) => setServings(e.target.value ? Number(e.target.value) : '')}
               className="w-full border border-gray-200 rounded-lg px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-shadow"
               min={1}
               required
@@ -412,8 +412,10 @@ export default function RecipeForm() {
                 />
                 <input
                   type="number"
-                  value={row.amount}
-                  onChange={(e) => updateRow(i, 'amount', Number(e.target.value))}
+                  value={row.amount || ''}
+                  onChange={(e) =>
+                    updateRow(i, 'amount', e.target.value ? Number(e.target.value) : 0)
+                  }
                   className="w-20 border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-300"
                   step="any"
                   min={0}
