@@ -68,3 +68,130 @@
 .toast-exit {
   animation: toast-out 0.3s ease-in forwards;
 }
+
+/* Print styles */
+@media print {
+  nav,
+  .fixed {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    font-size: 10pt !important;
+    color: #000 !important;
+  }
+
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Recipe detail print layout */
+  .max-w-3xl {
+    max-width: none !important;
+  }
+
+  /* Title */
+  .max-w-3xl h1 {
+    font-size: 16pt !important;
+    margin-bottom: 2pt !important;
+    color: #000 !important;
+  }
+
+  /* Description */
+  .max-w-3xl h1 + p {
+    font-size: 10pt !important;
+    color: #444 !important;
+  }
+
+  /* Meta badges — render inline as plain text */
+  .max-w-3xl .rounded-full {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    font-size: 9pt !important;
+    color: #555 !important;
+  }
+
+  /* Tags */
+  .max-w-3xl span.rounded-full {
+    background: none !important;
+    border: 1px solid #ccc !important;
+    padding: 1px 6px !important;
+    font-size: 8pt !important;
+    color: #555 !important;
+  }
+
+  /* Ingredients panel — clean with a subtle border */
+  .max-w-3xl .bg-brand-50 {
+    background: none !important;
+    border: 1px solid #ccc !important;
+    border-radius: 0 !important;
+    padding: 12pt !important;
+  }
+
+  .max-w-3xl .bg-brand-50 h2 {
+    font-size: 11pt !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 4pt;
+    margin-bottom: 8pt !important;
+  }
+
+  .max-w-3xl .bg-brand-50 li {
+    font-size: 9pt !important;
+    line-height: 1.6 !important;
+  }
+
+  .max-w-3xl .bg-brand-50 .font-semibold {
+    color: #000 !important;
+  }
+
+  .max-w-3xl .bg-brand-50 .text-gray-700 {
+    color: #333 !important;
+  }
+
+  /* Instructions panel */
+  .max-w-3xl .bg-white {
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+
+  .max-w-3xl .bg-white h2 {
+    font-size: 11pt !important;
+    color: #000 !important;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 4pt;
+    margin-bottom: 8pt !important;
+  }
+
+  .max-w-3xl .prose {
+    font-size: 9pt !important;
+    line-height: 1.6 !important;
+    color: #222 !important;
+  }
+
+  /* Grid layout — keep side-by-side for print */
+  .max-w-3xl .grid {
+    display: grid !important;
+    grid-template-columns: 1fr 2fr !important;
+    gap: 16pt !important;
+  }
+
+  /* Source URL */
+  .max-w-3xl > p:last-child {
+    font-size: 8pt !important;
+    color: #888 !important;
+    margin-top: 12pt !important;
+    border-top: 1px solid #eee;
+    padding-top: 6pt;
+  }
+
+  .max-w-3xl > p:last-child a {
+    color: #888 !important;
+    text-decoration: none !important;
+  }
+}

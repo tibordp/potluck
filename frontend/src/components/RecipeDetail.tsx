@@ -85,7 +85,7 @@ export default function RecipeDetail() {
       <div className="mb-2">
         <Link
           to="/recipes"
-          className="text-sm text-brand-600 hover:text-brand-700 mb-2 inline-block"
+          className="text-sm text-brand-600 hover:text-brand-700 mb-2 inline-block print:hidden"
         >
           ← Back to recipes
         </Link>
@@ -96,7 +96,13 @@ export default function RecipeDetail() {
               <p className="text-gray-500 mt-2 text-lg">{recipe.description}</p>
             )}
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-2 shrink-0 print:hidden">
+            <button
+              onClick={() => window.print()}
+              className="bg-gray-100 text-gray-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-200 transition-colors text-sm"
+            >
+              Print
+            </button>
             <Link
               to={`/recipes/${recipe.id}/edit`}
               className="bg-brand-50 text-brand-700 px-4 py-2 rounded-lg font-medium hover:bg-brand-100 transition-colors text-sm"
@@ -160,7 +166,7 @@ export default function RecipeDetail() {
           <div className="bg-brand-50 rounded-xl p-5 border border-brand-100">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-lg font-semibold text-brand-800">Ingredients</h2>
-              <div className="flex bg-brand-100 rounded-lg p-0.5 text-xs">
+              <div className="flex bg-brand-100 rounded-lg p-0.5 text-xs print:hidden">
                 <button
                   onClick={() => setUnitSystem('original')}
                   className={`px-2 py-0.5 rounded-md transition-colors ${
