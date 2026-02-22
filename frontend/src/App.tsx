@@ -8,6 +8,7 @@ import MenuView from './components/MenuView';
 import RecipeDetail from './components/RecipeDetail';
 import RecipeForm from './components/RecipeForm';
 import RecipeList from './components/RecipeList';
+import Settings from './components/Settings';
 import ShoppingList from './components/ShoppingList';
 import { ToastProvider } from './components/Toast';
 
@@ -17,7 +18,7 @@ const NAV_ITEMS = [
   { to: '/ingredients', label: 'Ingredients', icon: '🥕' },
 ];
 
-function Nav({ onLogout }: { onLogout: () => void }) {
+function Nav() {
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname.startsWith(path);
@@ -52,12 +53,26 @@ function Nav({ onLogout }: { onLogout: () => void }) {
               ))}
             </div>
           </div>
-          <button
-            onClick={onLogout}
-            className="text-sm text-white/70 hover:text-white transition-colors"
+          <Link
+            to="/settings"
+            className={`transition-colors ${
+              isActive('/settings') ? 'text-white' : 'text-white/70 hover:text-white'
+            }`}
+            title="Settings"
           >
-            Logout
-          </button>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              className="w-5 h-5"
+            >
+              <path
+                fillRule="evenodd"
+                d="M11.078 2.25c-.917 0-1.699.663-1.85 1.567L9.05 4.889c-.02.12-.115.26-.297.348a7.493 7.493 0 0 0-.986.57c-.166.115-.334.126-.45.083L6.3 5.508a1.875 1.875 0 0 0-2.282.819l-.922 1.597a1.875 1.875 0 0 0 .432 2.385l.84.692c.095.078.17.229.154.43a7.598 7.598 0 0 0 0 1.139c.015.2-.059.352-.153.43l-.841.692a1.875 1.875 0 0 0-.432 2.385l.922 1.597a1.875 1.875 0 0 0 2.282.818l1.019-.382c.115-.043.283-.031.45.082.312.214.641.405.985.57.182.088.277.228.297.35l.178 1.071c.151.904.933 1.567 1.85 1.567h1.844c.916 0 1.699-.663 1.85-1.567l.178-1.072c.02-.12.114-.26.297-.349.344-.165.673-.356.985-.57.167-.114.335-.125.45-.082l1.02.382a1.875 1.875 0 0 0 2.28-.819l.923-1.597a1.875 1.875 0 0 0-.432-2.385l-.84-.692c-.095-.078-.17-.229-.154-.43a7.614 7.614 0 0 0 0-1.139c-.016-.2.059-.352.153-.43l.84-.692c.708-.582.891-1.59.433-2.385l-.922-1.597a1.875 1.875 0 0 0-2.282-.818l-1.02.382c-.114.043-.282.031-.449-.083a7.49 7.49 0 0 0-.985-.57c-.183-.087-.277-.227-.297-.348l-.179-1.072a1.875 1.875 0 0 0-1.85-1.567h-1.843ZM12 15.75a3.75 3.75 0 1 0 0-7.5 3.75 3.75 0 0 0 0 7.5Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </Link>
         </div>
       </nav>
 
@@ -115,7 +130,7 @@ export default function App() {
   return (
     <ToastProvider>
       <div className="min-h-screen bg-gray-50 pb-16 sm:pb-0">
-        <Nav onLogout={handleLogout} />
+        <Nav />
         <main className="max-w-5xl mx-auto px-4 py-6">
           <Routes>
             <Route path="/" element={<Navigate to="/menu" replace />} />
@@ -128,6 +143,7 @@ export default function App() {
             <Route path="/ingredients" element={<IngredientList />} />
             <Route path="/menu" element={<MenuView />} />
             <Route path="/menus/:menuId/shopping" element={<ShoppingList />} />
+            <Route path="/settings" element={<Settings onLogout={handleLogout} />} />
           </Routes>
         </main>
       </div>

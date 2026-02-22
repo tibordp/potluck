@@ -58,6 +58,8 @@ export default defineConfig({
     }),
   ],
   server: {
+    host: true,
+    allowedHosts: true,
     proxy: {
       '/api': process.env.API_URL || 'http://localhost:8000',
     },

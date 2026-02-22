@@ -20,19 +20,6 @@ function ShoppingSkeleton() {
   );
 }
 
-type UnitSystem = 'metric' | 'imperial';
-
-function useUnitSystem(): [UnitSystem, (s: UnitSystem) => void] {
-  const [system, setSystem] = useState<UnitSystem>(
-    () => (localStorage.getItem('unitSystem') as UnitSystem) || 'metric'
-  );
-  const update = (s: UnitSystem) => {
-    setSystem(s);
-    localStorage.setItem('unitSystem', s);
-  };
-  return [system, update];
-}
-
 export default function ShoppingList() {
   const { menuId } = useParams<{ menuId: string }>();
   const [list, setList] = useState<ShoppingListType | null>(null);
@@ -45,11 +32,10 @@ export default function ShoppingList() {
       return new Set();
     }
   });
-  const [unitSystem, setUnitSystem] = useUnitSystem();
 
   useEffect(() => {
-    if (menuId) getShoppingList(Number(menuId), unitSystem).then(setList);
-  }, [menuId, unitSystem]);
+    if (menuId) getShoppingList(Number(menuId), 'metric').then(setList);
+  }, [menuId]);
 
   if (!list) return <ShoppingSkeleton />;
 
@@ -79,35 +65,11 @@ export default function ShoppingList() {
       </Link>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-gray-800">🛒 Shopping List</h1>
-        <div className="flex items-center gap-3">
-          <div className="flex bg-gray-100 rounded-lg p-0.5 text-sm">
-            <button
-              onClick={() => setUnitSystem('metric')}
-              className={`px-3 py-1 rounded-md transition-colors ${
-                unitSystem === 'metric'
-                  ? 'bg-white text-brand-700 font-medium shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Metric
-            </button>
-            <button
-              onClick={() => setUnitSystem('imperial')}
-              className={`px-3 py-1 rounded-md transition-colors ${
-                unitSystem === 'imperial'
-                  ? 'bg-white text-brand-700 font-medium shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Imperial
-            </button>
-          </div>
-          {totalItems > 0 && (
-            <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-              {checkedCount}/{totalItems} items
-            </span>
-          )}
-        </div>
+        {totalItems > 0 && (
+          <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
+            {checkedCount}/{totalItems} items
+          </span>
+        )}
       </div>
 
       {/* Progress bar */}

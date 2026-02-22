@@ -84,7 +84,20 @@ export function categoryHeaderClasses(category: string): string {
 
 // --- Unit conversion ---
 
-type UnitSystem = 'metric' | 'imperial';
+import { useState } from 'react';
+
+export type UnitSystem = 'original' | 'metric';
+
+export function useUnitSystem(): [UnitSystem, (s: UnitSystem) => void] {
+  const [system, setSystem] = useState<UnitSystem>(
+    () => (localStorage.getItem('unitSystem') as UnitSystem) || 'original'
+  );
+  const update = (s: UnitSystem) => {
+    setSystem(s);
+    localStorage.setItem('unitSystem', s);
+  };
+  return [system, update];
+}
 
 const UNIT_ALIASES: Record<string, [string, number]> = {
   // Mass → grams
@@ -123,26 +136,12 @@ const UNIT_ALIASES: Record<string, [string, number]> = {
   'fluid ounces': ['ml', 29.574],
 };
 
-function toDisplay(
-  amount: number,
-  canonical: string,
-  system: UnitSystem
-): { amount: number; unit: string } {
+function toDisplay(amount: number, canonical: string): { amount: number; unit: string } {
   if (canonical === 'g') {
-    if (system === 'imperial') {
-      const oz = amount / 28.35;
-      if (oz >= 16) return { amount: Math.round((oz / 16) * 100) / 100, unit: 'lb' };
-      return { amount: Math.round(oz * 100) / 100, unit: 'oz' };
-    }
     if (amount >= 1000) return { amount: Math.round((amount / 1000) * 100) / 100, unit: 'kg' };
     return { amount: Math.round(amount * 10) / 10, unit: 'g' };
   }
   if (canonical === 'ml') {
-    if (system === 'imperial') {
-      const flOz = amount / 29.574;
-      if (flOz >= 8) return { amount: Math.round((flOz / 8) * 100) / 100, unit: 'cup' };
-      return { amount: Math.round(flOz * 100) / 100, unit: 'fl oz' };
-    }
     if (amount >= 1000) return { amount: Math.round((amount / 1000) * 100) / 100, unit: 'l' };
     return { amount: Math.round(amount * 10) / 10, unit: 'ml' };
   }
@@ -154,11 +153,12 @@ export function convertUnit(
   unit: string,
   system: UnitSystem
 ): { amount: number; unit: string } {
+  if (system === 'original') return { amount, unit };
   const key = unit.trim().toLowerCase();
   const alias = UNIT_ALIASES[key];
   if (alias) {
     const [canonical, multiplier] = alias;
-    return toDisplay(amount * multiplier, canonical, system);
+    return toDisplay(amount * multiplier, canonical);
   }
   return { amount, unit };
 }

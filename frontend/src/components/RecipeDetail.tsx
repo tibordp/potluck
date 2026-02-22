@@ -1,22 +1,39 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteRecipe, getRecipe } from '../api';
 import { useToast } from './Toast';
-import { convertUnit, tagClasses, tagEmoji } from '../helpers';
-import type { Recipe } from '../types';
+import { convertUnit, tagClasses, tagEmoji, useUnitSystem } from '../helpers';
 
-type UnitSystem = 'metric' | 'imperial';
+function useWakeLock() {
+  const wakeLock = useRef<WakeLockSentinel | null>(null);
 
-function useUnitSystem(): [UnitSystem, (s: UnitSystem) => void] {
-  const [system, setSystem] = useState<UnitSystem>(
-    () => (localStorage.getItem('unitSystem') as UnitSystem) || 'metric'
-  );
-  const update = (s: UnitSystem) => {
-    setSystem(s);
-    localStorage.setItem('unitSystem', s);
-  };
-  return [system, update];
+  useEffect(() => {
+    if (!('wakeLock' in navigator)) return;
+
+    const request = () => {
+      navigator.wakeLock.request('screen').then(
+        (lock) => {
+          wakeLock.current = lock;
+        },
+        () => {}
+      );
+    };
+
+    request();
+
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') request();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      wakeLock.current?.release();
+      wakeLock.current = null;
+    };
+  }, []);
 }
+import type { Recipe } from '../types';
 
 function DetailSkeleton() {
   return (
@@ -45,6 +62,7 @@ export default function RecipeDetail() {
   const toast = useToast();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [unitSystem, setUnitSystem] = useUnitSystem();
+  useWakeLock();
 
   useEffect(() => {
     if (id) getRecipe(Number(id)).then(setRecipe);
@@ -64,30 +82,34 @@ export default function RecipeDetail() {
   return (
     <div className="max-w-3xl mx-auto">
       {/* Header */}
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex-1">
-          <Link
-            to="/recipes"
-            className="text-sm text-brand-600 hover:text-brand-700 mb-2 inline-block"
-          >
-            ← Back to recipes
-          </Link>
-          <h1 className="text-3xl font-bold text-gray-800">{recipe.name}</h1>
-          {recipe.description && <p className="text-gray-500 mt-2 text-lg">{recipe.description}</p>}
-        </div>
-        <div className="flex gap-2 ml-4 shrink-0">
-          <Link
-            to={`/recipes/${recipe.id}/edit`}
-            className="bg-brand-50 text-brand-700 px-4 py-2 rounded-lg font-medium hover:bg-brand-100 transition-colors text-sm"
-          >
-            Edit
-          </Link>
-          <button
-            onClick={handleDelete}
-            className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-red-100 transition-colors text-sm"
-          >
-            Delete
-          </button>
+      <div className="mb-2">
+        <Link
+          to="/recipes"
+          className="text-sm text-brand-600 hover:text-brand-700 mb-2 inline-block"
+        >
+          ← Back to recipes
+        </Link>
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-3xl font-bold text-gray-800">{recipe.name}</h1>
+            {recipe.description && (
+              <p className="text-gray-500 mt-2 text-lg">{recipe.description}</p>
+            )}
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <Link
+              to={`/recipes/${recipe.id}/edit`}
+              className="bg-brand-50 text-brand-700 px-4 py-2 rounded-lg font-medium hover:bg-brand-100 transition-colors text-sm"
+            >
+              Edit
+            </Link>
+            <button
+              onClick={handleDelete}
+              className="bg-red-50 text-red-600 px-4 py-2 rounded-lg font-medium hover:bg-red-100 transition-colors text-sm"
+            >
+              Delete
+            </button>
+          </div>
         </div>
       </div>
 
@@ -140,6 +162,16 @@ export default function RecipeDetail() {
               <h2 className="text-lg font-semibold text-brand-800">Ingredients</h2>
               <div className="flex bg-brand-100 rounded-lg p-0.5 text-xs">
                 <button
+                  onClick={() => setUnitSystem('original')}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${
+                    unitSystem === 'original'
+                      ? 'bg-white text-brand-700 font-medium shadow-sm'
+                      : 'text-brand-500 hover:text-brand-700'
+                  }`}
+                >
+                  Original
+                </button>
+                <button
                   onClick={() => setUnitSystem('metric')}
                   className={`px-2 py-0.5 rounded-md transition-colors ${
                     unitSystem === 'metric'
@@ -148,16 +180,6 @@ export default function RecipeDetail() {
                   }`}
                 >
                   Metric
-                </button>
-                <button
-                  onClick={() => setUnitSystem('imperial')}
-                  className={`px-2 py-0.5 rounded-md transition-colors ${
-                    unitSystem === 'imperial'
-                      ? 'bg-white text-brand-700 font-medium shadow-sm'
-                      : 'text-brand-500 hover:text-brand-700'
-                  }`}
-                >
-                  Imperial
                 </button>
               </div>
             </div>
