@@ -20,7 +20,7 @@ A meal planning app with AI-powered recipe import. Organize recipes, plan weekly
 
 ```bash
 # Start all services (PostgreSQL, backend, frontend)
-export ANTHROPIC_API_KEY=your-key-here
+export POTLUCK_ANTHROPIC_API_KEY=your-key-here
 docker compose up
 
 # Or use watch mode for live reloading

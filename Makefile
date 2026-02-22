@@ -18,7 +18,7 @@ secrets:
 		--namespace=$(NAMESPACE) \
 		--from-literal=APP_PASSWORD="$$APP_PASSWORD" \
 		--from-literal=SECRET_KEY="$$SECRET_KEY" \
-		--from-literal=ANTHROPIC_API_KEY="$$ANTHROPIC_API_KEY" \
+		--from-literal=POTLUCK_ANTHROPIC_API_KEY="$$POTLUCK_ANTHROPIC_API_KEY" \
 		--dry-run=client -o yaml | kubectl apply -f -
 
 deploy:

@@ -8,6 +8,9 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
       registerType: 'autoUpdate',
       manifest: {
         name: 'Potluck',
@@ -32,19 +35,25 @@ export default defineConfig({
             type: 'image/svg+xml',
           },
         ],
-      },
-      workbox: {
-        navigateFallback: 'index.html',
-        runtimeCaching: [
-          {
-            urlPattern: /^.*\/api\//,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxEntries: 100, maxAgeSeconds: 60 * 60 },
-            },
+        share_target: {
+          action: '/share-target',
+          method: 'POST',
+          enctype: 'multipart/form-data',
+          params: {
+            title: 'title',
+            text: 'text',
+            url: 'url',
+            files: [
+              {
+                name: 'image',
+                accept: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
+              },
+            ],
           },
-        ],
+        },
+      },
+      injectManifest: {
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,webp,woff,woff2}'],
       },
     }),
   ],

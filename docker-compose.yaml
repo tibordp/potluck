@@ -20,7 +20,7 @@ services:
       DATABASE_URL: postgresql://potluck:potluck@postgres:5432/potluck
       APP_PASSWORD: ${APP_PASSWORD:-changeme}
       SECRET_KEY: ${SECRET_KEY:-changeme}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      POTLUCK_ANTHROPIC_API_KEY: ${POTLUCK_ANTHROPIC_API_KEY}
     ports:
       - "8000:8000"
     develop:
@@ -30,6 +30,8 @@ services:
           target: /app/app
         - action: rebuild
           path: ./backend/pyproject.toml
+        - action: rebuild
+          path: ./backend/alembic
 
   frontend:
     build:

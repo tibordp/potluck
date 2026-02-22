@@ -129,7 +129,7 @@ async def parse_recipe_text(
     existing_ingredients: list[str],
     source_url: str | None = None,
 ) -> ParsedRecipe:
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = anthropic.Anthropic(api_key=settings.potluck_anthropic_api_key)
 
     ingredient_list = "\n".join(f"- {name}" for name in existing_ingredients)
     system_prompt = (
@@ -241,7 +241,7 @@ async def parse_recipe_image(
 ) -> ParsedRecipe:
     image_data, media_type = _compress_image(image_data)
 
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    client = anthropic.Anthropic(api_key=settings.potluck_anthropic_api_key)
 
     ingredient_list = "\n".join(f"- {name}" for name in existing_ingredients)
     system_prompt = (

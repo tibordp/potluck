@@ -31,6 +31,38 @@ export default function ImportRecipe() {
     getIngredients().then(setAllIngredients);
   }, []);
 
+  // Handle share target params
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const shareUrl = params.get('share_url');
+    const shareText = params.get('share_text');
+    const shareImage = params.get('share_image');
+
+    if (shareUrl) {
+      setMode('url');
+      setUrl(shareUrl);
+    } else if (shareText) {
+      setMode('text');
+      setText(shareText);
+    } else if (shareImage) {
+      setMode('scan');
+      caches
+        .open('share-target-data')
+        .then((cache) => cache.match('/share-target-image'))
+        .then(async (response) => {
+          if (!response) return;
+          const blob = await response.blob();
+          const file = new File([blob], 'shared-image.jpg', { type: blob.type });
+          handleImageSelect(file);
+          await caches.delete('share-target-data');
+        });
+    } else {
+      return;
+    }
+
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
   const handleImageSelect = (file: File | undefined) => {
     if (!file) return;
     setImageFile(file);
