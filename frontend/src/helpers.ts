@@ -28,6 +28,8 @@ const TAG_EMOJIS: Record<string, string> = {
   spicy: '🌶️',
 };
 
+export const ALL_TAGS: string[] = Object.keys(TAG_EMOJIS);
+
 export function tagEmoji(tag: string): string {
   return TAG_EMOJIS[tag.toLowerCase()] || '🏷️';
 }

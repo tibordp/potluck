@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { generateMenu, getCurrentMenu, getRecipes, updateMenuSlot } from '../api';
 import { useToast } from './Toast';
 import type { Menu, RecipeSummary } from '../types';
+import RecipeSearchBar, { type SearchFilter } from './RecipeSearchBar';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -40,44 +41,59 @@ function RecipePicker({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState('');
-  const [allRecipes, setAllRecipes] = useState<RecipeSummary[]>([]);
-  const [suggestions, setSuggestions] = useState<RecipeSummary[]>([]);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [filters, setFilters] = useState<SearchFilter[]>([]);
+  const [initialSuggestions, setInitialSuggestions] = useState<RecipeSummary[]>([]);
+  const [searchResults, setSearchResults] = useState<RecipeSummary[]>([]);
+  const wrapperRef = useRef<HTMLDivElement>(null);
 
+  const hasQuery = search.trim().length > 0 || filters.length > 0;
+
+  // Clear search results synchronously when query is cleared
+  const [prevHasQuery, setPrevHasQuery] = useState(hasQuery);
+  if (hasQuery !== prevHasQuery) {
+    setPrevHasQuery(hasQuery);
+    if (!hasQuery) setSearchResults([]);
+  }
+
+  // Fetch initial random suggestions
   useEffect(() => {
     getRecipes().then((recipes) => {
-      setAllRecipes(recipes);
-      // Pick a few random suggestions excluding current recipe
       const others = recipes.filter((r) => r.id !== currentRecipeId);
       const shuffled = [...others].sort(() => Math.random() - 0.5);
-      setSuggestions(shuffled.slice(0, 5));
+      setInitialSuggestions(shuffled.slice(0, 5));
     });
   }, [currentRecipeId]);
 
+  // Fetch search results when search or filters change
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (!hasQuery) return;
+    const tagFilter = filters.find((f) => f.kind === 'tag');
+    const ingFilter = filters.find((f) => f.kind === 'ingredient');
+    getRecipes(
+      search || undefined,
+      tagFilter?.kind === 'tag' ? tagFilter.value : undefined,
+      ingFilter?.kind === 'ingredient' ? ingFilter.id : undefined
+    ).then((results) => {
+      setSearchResults(results.filter((r) => r.id !== currentRecipeId));
+    });
+  }, [search, filters, currentRecipeId, hasQuery]);
 
-  const filtered = search.trim()
-    ? allRecipes.filter(
-        (r) => r.id !== currentRecipeId && r.name.toLowerCase().includes(search.toLowerCase())
-      )
-    : [];
-
-  const displayList = search.trim() ? filtered : suggestions;
-  const isSearching = search.trim().length > 0;
+  const displayList = hasQuery ? searchResults : initialSuggestions;
 
   return (
     <div className="border border-brand-200 bg-brand-50 rounded-lg p-3 mt-2">
       <div className="flex items-center gap-2 mb-2">
-        <input
-          ref={inputRef}
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search recipes..."
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300"
-        />
+        <div className="flex-1" ref={wrapperRef}>
+          <RecipeSearchBar
+            search={search}
+            onSearchChange={setSearch}
+            filters={filters}
+            onAddFilter={(f) => setFilters((prev) => [...prev, f])}
+            onRemoveFilter={(idx) => setFilters((prev) => prev.filter((_, i) => i !== idx))}
+            compact
+            placeholder="Search recipes..."
+          />
+        </div>
         <button
           onClick={onReroll}
           className="text-xs bg-gray-100 text-gray-600 px-2.5 py-1.5 rounded-lg hover:bg-gray-200 hover:text-gray-700 transition-colors shrink-0 font-medium"
@@ -92,10 +108,10 @@ function RecipePicker({
           ✕
         </button>
       </div>
-      {!isSearching && displayList.length > 0 && (
+      {!hasQuery && displayList.length > 0 && (
         <p className="text-xs text-gray-400 mb-1.5 px-1">Suggestions</p>
       )}
-      {isSearching && displayList.length === 0 && (
+      {hasQuery && displayList.length === 0 && (
         <p className="text-xs text-gray-400 text-center py-3">No recipes found</p>
       )}
       <div className="space-y-1 max-h-48 overflow-y-auto">
@@ -291,11 +307,8 @@ export default function MenuView() {
               if (!slot) return null;
               const isPickerOpen = pickerSlotId === slot.id;
               return (
-                <div
-                  key={dayIdx}
-                  className="bg-white rounded-xl border border-gray-100 overflow-hidden"
-                >
-                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-100">
+                <div key={dayIdx} className="bg-white rounded-xl border border-gray-100">
+                  <div className="bg-gray-50 px-4 py-2 border-b border-gray-100 rounded-t-xl">
                     <h3 className="font-semibold text-gray-700 text-sm">
                       <span className="sm:hidden">{DAY_SHORT[dayIdx]}</span>
                       <span className="hidden sm:inline">{dayName}</span>

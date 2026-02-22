@@ -71,10 +71,11 @@ export const deleteIngredient = (id: number) =>
   request<void>(`/api/ingredients/${id}`, { method: 'DELETE' });
 
 // Recipes
-export const getRecipes = (search?: string, tag?: string) => {
+export const getRecipes = (search?: string, tag?: string, ingredientId?: number) => {
   const params = new URLSearchParams();
   if (search) params.set('search', search);
   if (tag) params.set('tag', tag);
+  if (ingredientId != null) params.set('ingredient_id', String(ingredientId));
   return request<RecipeSummary[]>(`/api/recipes?${params}`);
 };
 export const getRecipe = (id: number) => request<Recipe>(`/api/recipes/${id}`);

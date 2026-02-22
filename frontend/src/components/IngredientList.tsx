@@ -1,4 +1,5 @@
 import { Fragment, type FormEvent, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { createIngredient, deleteIngredient, getIngredients, updateIngredient } from '../api';
 import { useToast } from './Toast';
 import { categoryEmoji } from '../helpers';
@@ -344,9 +345,12 @@ export default function IngredientList() {
                       {isOrphan ? (
                         <span className="text-xs text-gray-400 italic">unused</span>
                       ) : (
-                        <span className="text-xs text-gray-500">
+                        <Link
+                          to={`/recipes?ingredient_id=${ing.id}&ingredient_name=${encodeURIComponent(ing.name)}`}
+                          className="text-xs text-brand-600 hover:underline"
+                        >
                           {ing.recipe_count} {ing.recipe_count === 1 ? 'recipe' : 'recipes'}
-                        </span>
+                        </Link>
                       )}
                     </td>
                     <td className="px-4 py-2.5 text-right">

@@ -13,6 +13,7 @@ router = APIRouter(prefix="/api/recipes", tags=["recipes"], dependencies=[Depend
 def list_recipes(
     search: str | None = Query(None),
     tag: str | None = Query(None),
+    ingredient_id: int | None = Query(None),
     db: Session = Depends(get_db),
 ):
     q = db.query(Recipe)
@@ -20,6 +21,8 @@ def list_recipes(
         q = q.filter(Recipe.name.ilike(f"%{search}%"))
     if tag:
         q = q.filter(Recipe.tags.any(tag))
+    if ingredient_id:
+        q = q.filter(Recipe.ingredients.any(RecipeIngredient.ingredient_id == ingredient_id))
     return q.order_by(Recipe.created_at.desc()).all()
 
 

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { getRecipes } from '../api';
 import { tagClasses, tagEmoji } from '../helpers';
 import type { RecipeSummary } from '../types';
+import RecipeSearchBar, { type SearchFilter } from './RecipeSearchBar';
 
 function RecipeSkeleton() {
   return (
@@ -19,21 +20,38 @@ function RecipeSkeleton() {
 }
 
 export default function RecipeList() {
+  const [searchParams] = useSearchParams();
   const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<SearchFilter[]>(() => {
+    const initial: SearchFilter[] = [];
+    const tag = searchParams.get('tag');
+    if (tag) initial.push({ kind: 'tag', value: tag });
+    const ingId = searchParams.get('ingredient_id');
+    const ingName = searchParams.get('ingredient_name');
+    if (ingId && ingName) initial.push({ kind: 'ingredient', id: Number(ingId), name: ingName });
+    return initial;
+  });
   const [loading, setLoading] = useState(true);
 
+  const tagValue = filters.find((f) => f.kind === 'tag')?.value;
+  const ingId = filters.find((f) => f.kind === 'ingredient')?.id;
+
   const [prevSearch, setPrevSearch] = useState(search);
-  if (search !== prevSearch) {
+  const [prevTag, setPrevTag] = useState(tagValue);
+  const [prevIng, setPrevIng] = useState(ingId);
+  if (search !== prevSearch || tagValue !== prevTag || ingId !== prevIng) {
     setPrevSearch(search);
+    setPrevTag(tagValue);
+    setPrevIng(ingId);
     setLoading(true);
   }
 
   useEffect(() => {
-    getRecipes(search || undefined)
+    getRecipes(search || undefined, tagValue, ingId)
       .then(setRecipes)
       .finally(() => setLoading(false));
-  }, [search]);
+  }, [search, tagValue, ingId]);
 
   return (
     <div>
@@ -55,16 +73,13 @@ export default function RecipeList() {
         </div>
       </div>
 
-      <div className="relative mb-6">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">🔍</span>
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search recipes..."
-          className="w-full border border-gray-200 rounded-xl pl-10 pr-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:border-brand-300 transition-shadow"
-        />
-      </div>
+      <RecipeSearchBar
+        search={search}
+        onSearchChange={setSearch}
+        filters={filters}
+        onAddFilter={(f) => setFilters((prev) => [...prev, f])}
+        onRemoveFilter={(idx) => setFilters((prev) => prev.filter((_, i) => i !== idx))}
+      />
 
       {loading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
