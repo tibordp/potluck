@@ -129,7 +129,7 @@ export default function App() {
 
   return (
     <ToastProvider>
-      <div className="min-h-screen bg-gray-50 pb-16 sm:pb-0">
+      <div className="min-h-screen bg-gray-50 pb-16 sm:pb-0 overflow-x-hidden">
         <Nav />
         <main className="max-w-5xl mx-auto px-4 py-6">
           <Routes>

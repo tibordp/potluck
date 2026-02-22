@@ -150,6 +150,29 @@ export const updateMenuSlot = (
     method: 'PUT',
     body: JSON.stringify(data),
   });
+export const createMenuSlot = (menuId: number, data: { day: number; recipe_id: number }) =>
+  request<Menu>(`/api/menus/${menuId}/slots`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+export const deleteMenuSlot = (menuId: number, slotId: number) =>
+  request<Menu>(`/api/menus/${menuId}/slots/${slotId}`, { method: 'DELETE' });
+
+// Data export/import
+export const exportData = () => request<Record<string, unknown>>('/api/data/export');
+export const importData = (data: Record<string, unknown>) =>
+  request<{ ingredients_created: number; ingredients_updated: number; recipes_created: number }>(
+    '/api/data/import',
+    {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }
+  );
+export const clearAllData = (confirmation: string) =>
+  request<{ status: string }>('/api/data/clear', {
+    method: 'POST',
+    body: JSON.stringify({ confirmation }),
+  });
 
 // Shopping
 export const getShoppingList = (menuId: number, unitSystem?: string) => {

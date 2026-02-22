@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { generateMenu, getCurrentMenu, getRecipes, updateMenuSlot } from '../api';
+import {
+  createMenuSlot,
+  deleteMenuSlot,
+  generateMenu,
+  getCurrentMenu,
+  getRecipes,
+  updateMenuSlot,
+} from '../api';
 import { useToast } from './Toast';
 import type { Menu, RecipeSummary } from '../types';
 import RecipeSearchBar, { type SearchFilter } from './RecipeSearchBar';
@@ -81,9 +88,9 @@ function RecipePicker({
   const displayList = hasQuery ? searchResults : initialSuggestions;
 
   return (
-    <div className="border border-brand-200 bg-brand-50 rounded-lg p-3 mt-2">
+    <div className="border border-brand-200 bg-brand-50 rounded-lg p-3 mt-2 min-w-0">
       <div className="flex items-center gap-2 mb-2">
-        <div className="flex-1" ref={wrapperRef}>
+        <div className="flex-1 min-w-0" ref={wrapperRef}>
           <RecipeSearchBar
             search={search}
             onSearchChange={setSearch}
@@ -207,6 +214,7 @@ export default function MenuView() {
   const [generating, setGenerating] = useState(false);
   const [servings, setServings] = useState<number | ''>(4);
   const [pickerSlotId, setPickerSlotId] = useState<number | null>(null);
+  const [addingDay, setAddingDay] = useState<number | null>(null);
   const toast = useToast();
 
   useEffect(() => {
@@ -249,25 +257,41 @@ export default function MenuView() {
     setMenu(updated);
   };
 
+  const handleDeleteSlot = async (slotId: number) => {
+    if (!menu) return;
+    const updated = await deleteMenuSlot(menu.id, slotId);
+    setMenu(updated);
+    setPickerSlotId(null);
+    toast('Meal removed');
+  };
+
+  const handleAddSlot = async (dayIdx: number, recipeId: number) => {
+    if (!menu) return;
+    const updated = await createMenuSlot(menu.id, { day: dayIdx, recipe_id: recipeId });
+    setMenu(updated);
+    setAddingDay(null);
+    toast('Meal added');
+  };
+
   return (
-    <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="min-w-0">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Weekly Menu</h1>
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-1.5">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 bg-white border border-gray-200 rounded-lg px-2.5 py-1.5">
             <span className="text-sm text-gray-500">👥</span>
             <input
               type="number"
               value={servings}
               onChange={(e) => setServings(e.target.value ? Number(e.target.value) : '')}
-              className="w-12 text-sm focus:outline-none"
+              className="w-10 text-sm focus:outline-none"
               min={1}
             />
           </div>
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="bg-gradient-to-r from-brand-500 to-brand-600 text-white px-5 py-2 rounded-lg font-medium hover:from-brand-600 hover:to-brand-700 transition-all shadow-sm disabled:opacity-50 text-sm"
+            className="bg-gradient-to-r from-brand-500 to-brand-600 text-white px-4 py-2 rounded-lg font-medium hover:from-brand-600 hover:to-brand-700 transition-all shadow-sm disabled:opacity-50 text-sm whitespace-nowrap"
           >
             {generating ? (
               <span className="flex items-center gap-2">
@@ -307,54 +331,94 @@ export default function MenuView() {
 
           <div className="grid gap-3">
             {DAYS.map((dayName, dayIdx) => {
-              const slot = menu.slots.find((s) => s.day === dayIdx && s.meal === 'dinner');
-              if (!slot) return null;
-              const isPickerOpen = pickerSlotId === slot.id;
+              const daySlots = menu.slots.filter((s) => s.day === dayIdx);
+              const isAddingHere = addingDay === dayIdx;
               return (
-                <div key={dayIdx} className="bg-white rounded-xl border border-gray-100 p-3 group">
+                <div
+                  key={dayIdx}
+                  className="bg-white rounded-xl border border-gray-100 p-3 group min-w-0"
+                >
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-gray-700 text-sm">
                       <span className="sm:hidden">{DAY_SHORT[dayIdx]}</span>
                       <span className="hidden sm:inline">{dayName}</span>
                     </h3>
                     <button
-                      onClick={() => setPickerSlotId(isPickerOpen ? null : slot.id)}
-                      className={`text-xs px-2.5 py-1 rounded-lg transition-all shrink-0 font-medium ${
-                        isPickerOpen
+                      onClick={() => setAddingDay(isAddingHere ? null : dayIdx)}
+                      className={`text-sm px-3 py-1.5 rounded-lg transition-all shrink-0 font-medium ${
+                        isAddingHere
                           ? 'bg-brand-100 text-brand-700'
                           : 'sm:opacity-0 sm:group-hover:opacity-100 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
                       }`}
-                      title="Change recipe"
+                      title="Add meal"
                     >
-                      Change
+                      + Add
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 min-w-0 mt-1">
-                    <Link
-                      to={`/recipes/${slot.recipe.id}`}
-                      className="text-sm font-medium text-gray-700 hover:text-brand-600 transition-colors truncate"
-                    >
-                      {slot.recipe.name}
-                    </Link>
-                    <ServingsBadge
-                      slot={slot}
-                      menuServings={menu.servings}
-                      onUpdate={(v) => handleServingsOverride(slot.id, v)}
-                    />
-                  </div>
-                  {slot.recipe.freezable && (
-                    <div className="flex items-center gap-1.5 mt-1.5">
-                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-cyan-100 text-cyan-700">
-                        🧊 freezable
-                      </span>
-                    </div>
+                  {daySlots.length === 0 && (
+                    <p className="text-sm text-gray-400 italic mt-1">No meals</p>
                   )}
-                  {isPickerOpen && (
+                  {daySlots.map((slot) => {
+                    const isPickerOpen = pickerSlotId === slot.id;
+                    return (
+                      <div key={slot.id} className="mt-1.5">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="flex items-center gap-1 min-w-0">
+                            <Link
+                              to={`/recipes/${slot.recipe.id}`}
+                              className="text-sm font-medium text-gray-700 hover:text-brand-600 transition-colors truncate"
+                            >
+                              {slot.recipe.name}
+                            </Link>
+                            <ServingsBadge
+                              slot={slot}
+                              menuServings={menu.servings}
+                              onUpdate={(v) => handleServingsOverride(slot.id, v)}
+                            />
+                            {slot.recipe.freezable && (
+                              <span className="text-xs shrink-0 hidden sm:inline" title="Freezable">
+                                🧊
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0 ml-auto">
+                            <button
+                              onClick={() => setPickerSlotId(isPickerOpen ? null : slot.id)}
+                              className={`text-sm px-2.5 py-1 rounded-lg transition-all font-medium ${
+                                isPickerOpen
+                                  ? 'bg-brand-100 text-brand-700'
+                                  : 'sm:opacity-0 sm:group-hover:opacity-100 bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                              }`}
+                              title="Change recipe"
+                            >
+                              ↻
+                            </button>
+                            <button
+                              onClick={() => handleDeleteSlot(slot.id)}
+                              className="text-sm px-2 py-1 rounded-lg transition-all sm:opacity-0 sm:group-hover:opacity-100 text-red-400 hover:bg-red-50 hover:text-red-600"
+                              title="Remove meal"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                        {isPickerOpen && (
+                          <RecipePicker
+                            currentRecipeId={slot.recipe.id}
+                            onPick={(recipeId) => handlePickRecipe(slot.id, recipeId)}
+                            onReroll={() => handleReroll(slot.id)}
+                            onClose={() => setPickerSlotId(null)}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                  {isAddingHere && (
                     <RecipePicker
-                      currentRecipeId={slot.recipe.id}
-                      onPick={(recipeId) => handlePickRecipe(slot.id, recipeId)}
-                      onReroll={() => handleReroll(slot.id)}
-                      onClose={() => setPickerSlotId(null)}
+                      currentRecipeId={-1}
+                      onPick={(recipeId) => handleAddSlot(dayIdx, recipeId)}
+                      onReroll={() => {}}
+                      onClose={() => setAddingDay(null)}
                     />
                   )}
                 </div>

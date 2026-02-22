@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .routers import auth, import_recipe, ingredients, menus, recipes, shopping
+from .routers import auth, data, import_recipe, ingredients, menus, recipes, shopping
 
 app = FastAPI(title="Potluck")
 
@@ -14,6 +14,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router)
+app.include_router(data.router)
 app.include_router(ingredients.router)
 app.include_router(recipes.router)
 app.include_router(import_recipe.router)

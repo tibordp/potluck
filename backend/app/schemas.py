@@ -127,6 +127,11 @@ class MenuGenerateRequest(BaseModel):
     servings: int = 4
 
 
+class MenuSlotCreate(BaseModel):
+    day: int
+    recipe_id: int
+
+
 class MenuSlotUpdate(BaseModel):
     recipe_id: int | None = None
     reroll: bool = False
@@ -172,6 +177,48 @@ class ParsedRecipe(BaseModel):
     source_url: str | None = None
     freezable: bool = False
     ingredients: list[ParsedIngredient] = []
+
+
+# --- Data Export/Import ---
+class DataExportIngredient(BaseModel):
+    name: str
+    category: str
+    perishability: str
+
+
+class DataExportRecipeIngredient(BaseModel):
+    ingredient_name: str
+    amount: float
+    unit: str
+
+
+class DataExportRecipe(BaseModel):
+    name: str
+    description: str | None = None
+    servings: int = 4
+    prep_time_minutes: int | None = None
+    cook_time_minutes: int | None = None
+    instructions: str = ""
+    tags: list[str] = []
+    source_url: str | None = None
+    freezable: bool = False
+    ingredients: list[DataExportRecipeIngredient] = []
+
+
+class DataExport(BaseModel):
+    version: int = 1
+    ingredients: list[DataExportIngredient] = []
+    recipes: list[DataExportRecipe] = []
+
+
+class DataImportResult(BaseModel):
+    ingredients_created: int
+    ingredients_updated: int
+    recipes_created: int
+
+
+class ClearConfirmation(BaseModel):
+    confirmation: str
 
 
 # --- Auth ---

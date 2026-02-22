@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, joinedload
 from ..auth import require_auth
 from ..database import get_db
 from ..models import MenuSlot, Recipe, RecipeIngredient, WeeklyMenu
-from ..schemas import MenuGenerateRequest, MenuOut, MenuSlotUpdate
+from ..schemas import MenuGenerateRequest, MenuOut, MenuSlotCreate, MenuSlotUpdate
 from ..services.menu_planner import generate_menu
 
 router = APIRouter(prefix="/api/menus", tags=["menus"], dependencies=[Depends(require_auth)])
@@ -68,6 +68,46 @@ def get_current_menu(db: Session = Depends(get_db)):
 
 @router.get("/{menu_id}", response_model=MenuOut)
 def get_menu(menu_id: int, db: Session = Depends(get_db)):
+    return _load_menu(db, menu_id)
+
+
+@router.post("/{menu_id}/slots", response_model=MenuOut, status_code=201)
+def create_slot(
+    menu_id: int,
+    body: MenuSlotCreate,
+    db: Session = Depends(get_db),
+):
+    menu = db.query(WeeklyMenu).filter(WeeklyMenu.id == menu_id).first()
+    if not menu:
+        raise HTTPException(status_code=404, detail="Menu not found")
+    recipe = db.query(Recipe).filter(Recipe.id == body.recipe_id).first()
+    if not recipe:
+        raise HTTPException(status_code=404, detail="Recipe not found")
+    if body.day < 0 or body.day > 6:
+        raise HTTPException(status_code=400, detail="Day must be 0-6")
+
+    slot = MenuSlot(
+        menu_id=menu_id,
+        day=body.day,
+        meal="dinner",
+        recipe_id=body.recipe_id,
+    )
+    db.add(slot)
+    db.commit()
+    return _load_menu(db, menu_id)
+
+
+@router.delete("/{menu_id}/slots/{slot_id}", response_model=MenuOut)
+def delete_slot(
+    menu_id: int,
+    slot_id: int,
+    db: Session = Depends(get_db),
+):
+    slot = db.query(MenuSlot).filter(MenuSlot.id == slot_id, MenuSlot.menu_id == menu_id).first()
+    if not slot:
+        raise HTTPException(status_code=404, detail="Slot not found")
+    db.delete(slot)
+    db.commit()
     return _load_menu(db, menu_id)
 
 
