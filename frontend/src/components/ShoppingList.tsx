@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { getShoppingList } from '../api';
 import { categoryEmoji, categoryHeaderClasses } from '../helpers';
-import type { ShoppingList as ShoppingListType } from '../types';
+import { useShoppingList } from '../hooks';
 
 function ShoppingSkeleton() {
   return (
@@ -22,7 +21,7 @@ function ShoppingSkeleton() {
 
 export default function ShoppingList() {
   const { menuId } = useParams<{ menuId: string }>();
-  const [list, setList] = useState<ShoppingListType | null>(null);
+  const { data: list, error } = useShoppingList(menuId ? Number(menuId) : undefined, 'metric');
   const storageKey = `shopping-checked-${menuId}`;
   const [checked, setChecked] = useState<Set<string>>(() => {
     try {
@@ -33,9 +32,14 @@ export default function ShoppingList() {
     }
   });
 
-  useEffect(() => {
-    if (menuId) getShoppingList(Number(menuId), 'metric').then(setList);
-  }, [menuId]);
+  if (error)
+    return (
+      <div className="max-w-xl mx-auto text-center py-16">
+        <div className="text-6xl mb-4">📡</div>
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Unable to load shopping list</h2>
+        <p className="text-gray-500">Check your connection and try again.</p>
+      </div>
+    );
 
   if (!list) return <ShoppingSkeleton />;
 

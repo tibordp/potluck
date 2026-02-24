@@ -1,8 +1,10 @@
-import { Fragment, type FormEvent, useEffect, useState } from 'react';
+import { Fragment, type FormEvent, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { createIngredient, deleteIngredient, getIngredients, updateIngredient } from '../api';
+import { useSWRConfig } from 'swr';
+import { createIngredient, deleteIngredient, updateIngredient } from '../api';
 import { useToast } from './Toast';
 import { categoryEmoji } from '../helpers';
+import { ingredientsKey, useIngredients } from '../hooks';
 import type { IngredientWithUsage } from '../types';
 
 const CATEGORIES = ['produce', 'meat', 'dairy', 'pantry', 'frozen', 'spice', 'other'];
@@ -127,7 +129,6 @@ function sortIngredients(
 }
 
 export default function IngredientList() {
-  const [ingredients, setIngredients] = useState<IngredientWithUsage[]>([]);
   const [search, setSearch] = useState('');
   const [filterCategory, setFilterCategory] = useState('');
   const [showNewForm, setShowNewForm] = useState(false);
@@ -138,12 +139,14 @@ export default function IngredientList() {
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const toast = useToast();
+  const { mutate } = useSWRConfig();
 
-  const load = () => {
-    getIngredients(search || undefined, filterCategory || undefined).then(setIngredients);
-  };
+  const { data: ingredients, error } = useIngredients(
+    search || undefined,
+    filterCategory || undefined
+  );
 
-  useEffect(load, [search, filterCategory]);
+  const revalidate = () => mutate(ingredientsKey(search || undefined, filterCategory || undefined));
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -159,7 +162,7 @@ export default function IngredientList() {
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   };
 
-  const sorted = sortIngredients(ingredients, sortKey, sortDir);
+  const sorted = sortIngredients(ingredients ?? [], sortKey, sortDir);
 
   const handleCreate = async (e: FormEvent) => {
     e.preventDefault();
@@ -173,7 +176,7 @@ export default function IngredientList() {
     setNewCategory('other');
     setNewPerishability('long-lasting');
     setShowNewForm(false);
-    load();
+    revalidate();
   };
 
   const handleUpdate = async (
@@ -183,7 +186,7 @@ export default function IngredientList() {
     await updateIngredient(id, data);
     toast('Ingredient updated');
     setEditId(null);
-    load();
+    revalidate();
   };
 
   const handleDelete = async (ing: IngredientWithUsage) => {
@@ -191,7 +194,7 @@ export default function IngredientList() {
     try {
       await deleteIngredient(ing.id);
       toast('Ingredient deleted');
-      load();
+      revalidate();
     } catch (err) {
       toast(err instanceof Error ? err.message : 'An error occurred', 'error');
     }
@@ -293,115 +296,123 @@ export default function IngredientList() {
         </select>
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
-        <table className="w-full text-sm min-w-[600px]">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-100">
-              {(
-                [
-                  ['name', 'Name'],
-                  ['category', 'Category'],
-                  ['perishability', 'Perishability'],
-                  ['recipe_count', 'Used in'],
-                ] as const
-              ).map(([key, label]) => (
-                <th
-                  key={key}
-                  onClick={() => toggleSort(key)}
-                  className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 transition-colors"
-                >
-                  {label}
-                  <span className="text-xs text-gray-400">{sortIndicator(key)}</span>
-                </th>
-              ))}
-              <th className="px-4 py-3 w-28"></th>
-            </tr>
-          </thead>
-          <tbody>
-            {sorted.map((ing) => {
-              const isEditing = editId === ing.id;
-              const isOrphan = ing.recipe_count === 0;
-              return (
-                <Fragment key={ing.id}>
-                  <tr
-                    className={`border-t border-gray-50 transition-colors ${
-                      isEditing ? 'bg-brand-50/50' : 'hover:bg-gray-50'
-                    }`}
+      {error ? (
+        <div className="text-center py-16">
+          <div className="text-6xl mb-4">📡</div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Unable to load ingredients</h2>
+          <p className="text-gray-500">Check your connection and try again.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-100 overflow-x-auto">
+          <table className="w-full text-sm min-w-[600px]">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-100">
+                {(
+                  [
+                    ['name', 'Name'],
+                    ['category', 'Category'],
+                    ['perishability', 'Perishability'],
+                    ['recipe_count', 'Used in'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <th
+                    key={key}
+                    onClick={() => toggleSort(key)}
+                    className="text-left px-4 py-3 font-medium text-gray-500 cursor-pointer select-none hover:text-gray-700 transition-colors"
                   >
-                    <td className="px-4 py-2.5 font-medium text-gray-800">{ing.name}</td>
-                    <td className="px-4 py-2.5 capitalize text-gray-600">
-                      {categoryEmoji(ing.category)} {ing.category}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                          PERISHABILITY_CLASSES[ing.perishability] || 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
-                        {ing.perishability}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      {isOrphan ? (
-                        <span className="text-xs text-gray-400 italic">unused</span>
-                      ) : (
-                        <Link
-                          to={`/recipes?ingredient_id=${ing.id}&ingredient_name=${encodeURIComponent(ing.name)}`}
-                          className="text-xs text-brand-600 hover:underline"
-                        >
-                          {ing.recipe_count} {ing.recipe_count === 1 ? 'recipe' : 'recipes'}
-                        </Link>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => {
-                            setEditId(isEditing ? null : ing.id);
-                            setShowNewForm(false);
-                          }}
-                          className={`text-xs font-medium transition-colors ${
-                            isEditing
-                              ? 'text-gray-500 hover:text-gray-700'
-                              : 'text-brand-600 hover:text-brand-700'
+                    {label}
+                    <span className="text-xs text-gray-400">{sortIndicator(key)}</span>
+                  </th>
+                ))}
+                <th className="px-4 py-3 w-28"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {sorted.map((ing) => {
+                const isEditing = editId === ing.id;
+                const isOrphan = ing.recipe_count === 0;
+                return (
+                  <Fragment key={ing.id}>
+                    <tr
+                      className={`border-t border-gray-50 transition-colors ${
+                        isEditing ? 'bg-brand-50/50' : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <td className="px-4 py-2.5 font-medium text-gray-800">{ing.name}</td>
+                      <td className="px-4 py-2.5 capitalize text-gray-600">
+                        {categoryEmoji(ing.category)} {ing.category}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                            PERISHABILITY_CLASSES[ing.perishability] || 'bg-gray-100 text-gray-600'
                           }`}
                         >
-                          {isEditing ? 'Cancel' : 'Edit'}
-                        </button>
-                        {isOrphan && (
-                          <button
-                            onClick={() => handleDelete(ing)}
-                            className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors"
+                          {ing.perishability}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {isOrphan ? (
+                          <span className="text-xs text-gray-400 italic">unused</span>
+                        ) : (
+                          <Link
+                            to={`/recipes?ingredient_id=${ing.id}&ingredient_name=${encodeURIComponent(ing.name)}`}
+                            className="text-xs text-brand-600 hover:underline"
                           >
-                            Delete
-                          </button>
+                            {ing.recipe_count} {ing.recipe_count === 1 ? 'recipe' : 'recipes'}
+                          </Link>
                         )}
-                      </div>
-                    </td>
-                  </tr>
-                  {isEditing && (
-                    <InlineEditForm
-                      initial={{
-                        name: ing.name,
-                        category: ing.category,
-                        perishability: ing.perishability,
-                      }}
-                      onSave={(data) => handleUpdate(ing.id, data)}
-                      onCancel={() => setEditId(null)}
-                    />
-                  )}
-                </Fragment>
-              );
-            })}
-          </tbody>
-        </table>
-        {ingredients.length === 0 && (
-          <div className="text-center py-12">
-            <div className="text-4xl mb-3">🥕</div>
-            <p className="text-gray-500">No ingredients found</p>
-          </div>
-        )}
-      </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              setEditId(isEditing ? null : ing.id);
+                              setShowNewForm(false);
+                            }}
+                            className={`text-xs font-medium transition-colors ${
+                              isEditing
+                                ? 'text-gray-500 hover:text-gray-700'
+                                : 'text-brand-600 hover:text-brand-700'
+                            }`}
+                          >
+                            {isEditing ? 'Cancel' : 'Edit'}
+                          </button>
+                          {isOrphan && (
+                            <button
+                              onClick={() => handleDelete(ing)}
+                              className="text-xs font-medium text-red-400 hover:text-red-600 transition-colors"
+                            >
+                              Delete
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    {isEditing && (
+                      <InlineEditForm
+                        initial={{
+                          name: ing.name,
+                          category: ing.category,
+                          perishability: ing.perishability,
+                        }}
+                        onSave={(data) => handleUpdate(ing.id, data)}
+                        onCancel={() => setEditId(null)}
+                      />
+                    )}
+                  </Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+          {(ingredients?.length ?? 0) === 0 && (
+            <div className="text-center py-12">
+              <div className="text-4xl mb-3">🥕</div>
+              <p className="text-gray-500">No ingredients found</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

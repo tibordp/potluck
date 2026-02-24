@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { deleteRecipe, getRecipe } from '../api';
+import { deleteRecipe } from '../api';
 import { useToast } from './Toast';
 import { convertUnit, tagClasses, tagEmoji, useUnitSystem } from '../helpers';
+import { useRecipe } from '../hooks';
 
 function useWakeLock() {
   const wakeLock = useRef<WakeLockSentinel | null>(null);
@@ -33,7 +34,6 @@ function useWakeLock() {
     };
   }, []);
 }
-import type { Recipe } from '../types';
 
 function DetailSkeleton() {
   return (
@@ -60,13 +60,18 @@ export default function RecipeDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
-  const [recipe, setRecipe] = useState<Recipe | null>(null);
+  const { data: recipe, error } = useRecipe(id ? Number(id) : undefined);
   const [unitSystem, setUnitSystem] = useUnitSystem();
   useWakeLock();
 
-  useEffect(() => {
-    if (id) getRecipe(Number(id)).then(setRecipe);
-  }, [id]);
+  if (error)
+    return (
+      <div className="max-w-3xl mx-auto text-center py-16">
+        <div className="text-6xl mb-4">📡</div>
+        <h2 className="text-xl font-semibold text-gray-700 mb-2">Unable to load recipe</h2>
+        <p className="text-gray-500">Check your connection and try again.</p>
+      </div>
+    );
 
   if (!recipe) return <DetailSkeleton />;
 

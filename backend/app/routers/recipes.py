@@ -1,3 +1,5 @@
+import random
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, joinedload
 
@@ -24,6 +26,21 @@ def list_recipes(
     if ingredient_id:
         q = q.filter(Recipe.ingredients.any(RecipeIngredient.ingredient_id == ingredient_id))
     return q.order_by(Recipe.created_at.desc()).all()
+
+
+@router.get("/suggestions", response_model=list[RecipeSummary])
+def suggest_recipes(
+    exclude_ids: str | None = Query(None),
+    limit: int = Query(5, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
+    q = db.query(Recipe)
+    if exclude_ids:
+        ids = [int(x) for x in exclude_ids.split(",") if x.strip()]
+        if ids:
+            q = q.filter(~Recipe.id.in_(ids))
+    recipes = q.all()
+    return random.sample(recipes, min(limit, len(recipes)))
 
 
 @router.get("/{recipe_id}", response_model=RecipeOut)

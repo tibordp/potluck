@@ -1,8 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { getRecipes } from '../api';
 import { tagClasses, tagEmoji } from '../helpers';
-import type { RecipeSummary } from '../types';
+import { useRecipes } from '../hooks';
 import RecipeSearchBar, { type SearchFilter } from './RecipeSearchBar';
 
 function RecipeSkeleton() {
@@ -21,7 +20,6 @@ function RecipeSkeleton() {
 
 export default function RecipeList() {
   const [searchParams] = useSearchParams();
-  const [recipes, setRecipes] = useState<RecipeSummary[]>([]);
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<SearchFilter[]>(() => {
     const initial: SearchFilter[] = [];
@@ -32,26 +30,11 @@ export default function RecipeList() {
     if (ingId && ingName) initial.push({ kind: 'ingredient', id: Number(ingId), name: ingName });
     return initial;
   });
-  const [loading, setLoading] = useState(true);
 
   const tagValue = filters.find((f) => f.kind === 'tag')?.value;
   const ingId = filters.find((f) => f.kind === 'ingredient')?.id;
 
-  const [prevSearch, setPrevSearch] = useState(search);
-  const [prevTag, setPrevTag] = useState(tagValue);
-  const [prevIng, setPrevIng] = useState(ingId);
-  if (search !== prevSearch || tagValue !== prevTag || ingId !== prevIng) {
-    setPrevSearch(search);
-    setPrevTag(tagValue);
-    setPrevIng(ingId);
-    setLoading(true);
-  }
-
-  useEffect(() => {
-    getRecipes(search || undefined, tagValue, ingId)
-      .then(setRecipes)
-      .finally(() => setLoading(false));
-  }, [search, tagValue, ingId]);
+  const { data: recipes, error, isLoading } = useRecipes(search || undefined, tagValue, ingId);
 
   return (
     <div>
@@ -81,15 +64,21 @@ export default function RecipeList() {
         onRemoveFilter={(idx) => setFilters((prev) => prev.filter((_, i) => i !== idx))}
       />
 
-      {loading ? (
+      {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[...Array(6)].map((_, i) => (
             <RecipeSkeleton key={i} />
           ))}
         </div>
+      ) : error ? (
+        <div className="text-center py-16">
+          <div className="text-6xl mb-4">📡</div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Unable to load recipes</h2>
+          <p className="text-gray-500">Check your connection and try again.</p>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {recipes.map((r) => (
+          {recipes?.map((r) => (
             <Link
               key={r.id}
               to={`/recipes/${r.id}`}
@@ -123,7 +112,7 @@ export default function RecipeList() {
         </div>
       )}
 
-      {!loading && recipes.length === 0 && (
+      {!isLoading && recipes?.length === 0 && (
         <div className="text-center py-16">
           <div className="text-6xl mb-4">📖</div>
           <h2 className="text-xl font-semibold text-gray-700 mb-2">No recipes yet</h2>

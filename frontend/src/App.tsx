@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
 import { Link, Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { authCheck, logout } from './api';
+import { useSWRConfig } from 'swr';
+import { logout } from './api';
 import ImportRecipe from './components/ImportRecipe';
 import IngredientList from './components/IngredientList';
 import Login from './components/Login';
@@ -11,6 +11,7 @@ import RecipeList from './components/RecipeList';
 import Settings from './components/Settings';
 import ShoppingList from './components/ShoppingList';
 import { ToastProvider } from './components/Toast';
+import { authCheckKey, useAuthCheck } from './hooks';
 
 const NAV_ITEMS = [
   { to: '/menu', label: 'Menu', icon: '📅' },
@@ -98,20 +99,15 @@ function Nav() {
 }
 
 export default function App() {
-  const [auth, setAuth] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    authCheck()
-      .then((res) => setAuth(res.authenticated))
-      .catch(() => setAuth(false));
-  }, []);
+  const { data: auth, isLoading } = useAuthCheck();
+  const { mutate } = useSWRConfig();
 
   const handleLogout = async () => {
     await logout();
-    setAuth(false);
+    mutate(authCheckKey(), { authenticated: false }, false);
   };
 
-  if (auth === null) {
+  if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-4xl animate-pulse">🍽️</div>
@@ -119,10 +115,10 @@ export default function App() {
     );
   }
 
-  if (!auth) {
+  if (!auth?.authenticated) {
     return (
       <ToastProvider>
-        <Login onLogin={() => setAuth(true)} />
+        <Login onLogin={() => mutate(authCheckKey())} />
       </ToastProvider>
     );
   }

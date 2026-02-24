@@ -3,7 +3,7 @@
 import { clientsClaim } from 'workbox-core';
 import { precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
-import { NetworkFirst } from 'workbox-strategies';
+import { NetworkFirst, NetworkOnly } from 'workbox-strategies';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -12,20 +12,35 @@ self.skipWaiting();
 
 precacheAndRoute(self.__WB_MANIFEST);
 
-// Runtime caching for API requests
-registerRoute(
-  ({ url }) => url.pathname.startsWith('/api/'),
-  new NetworkFirst({
-    cacheName: 'api-cache',
-    plugins: [
-      {
-        cacheWillUpdate: async ({ response }) => {
-          return response?.status === 200 ? response : null;
-        },
+// API routes cached for offline use (NetworkFirst: network with cache fallback).
+// Only cache stable, identity-based data — not search results or random suggestions.
+// When adding new API endpoints, decide explicitly whether they belong here.
+const CACHEABLE_API_PATTERNS = [
+  /^\/api\/recipes\/\d+$/, // single recipe detail
+  /^\/api\/ingredients(\?|$)/, // ingredient list
+  /^\/api\/menus\/current$/, // current menu
+  /^\/api\/menus\/\d+$/, // menu by ID
+  /^\/api\/menus\/\d+\/shopping-list(\?|$)/, // shopping list
+];
+
+const networkFirstStrategy = new NetworkFirst({
+  cacheName: 'api-cache',
+  plugins: [
+    {
+      cacheWillUpdate: async ({ response }) => {
+        return response?.status === 200 ? response : null;
       },
-    ],
-  })
+    },
+  ],
+});
+
+registerRoute(
+  ({ url }) => CACHEABLE_API_PATTERNS.some((re) => re.test(url.pathname)),
+  networkFirstStrategy
 );
+
+// All other API requests: network only, no caching.
+registerRoute(({ url }) => url.pathname.startsWith('/api/'), new NetworkOnly());
 
 // Handle share target POST requests
 registerRoute(

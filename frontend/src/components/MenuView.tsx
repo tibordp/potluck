@@ -1,16 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  createMenuSlot,
-  deleteMenuSlot,
-  generateMenu,
-  getCurrentMenu,
-  getRecipes,
-  updateMenuSlot,
-} from '../api';
+import { useSWRConfig } from 'swr';
+import { createMenuSlot, deleteMenuSlot, generateMenu, updateMenuSlot } from '../api';
 import { useToast } from './Toast';
-import type { Menu, RecipeSummary } from '../types';
+import type { Menu } from '../types';
 import RecipeSearchBar, { type SearchFilter } from './RecipeSearchBar';
+import { currentMenuKey, useCurrentMenu, useRecipeSuggestions, useRecipes } from '../hooks';
 
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -38,54 +33,38 @@ function MenuSkeleton() {
 
 function RecipePicker({
   currentRecipeId,
+  menuRecipeIds,
   onPick,
   onReroll,
   onClose,
 }: {
   currentRecipeId: number;
+  menuRecipeIds: number[];
   onPick: (recipeId: number) => void;
   onReroll: () => void;
   onClose: () => void;
 }) {
   const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<SearchFilter[]>([]);
-  const [initialSuggestions, setInitialSuggestions] = useState<RecipeSummary[]>([]);
-  const [searchResults, setSearchResults] = useState<RecipeSummary[]>([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const hasQuery = search.trim().length > 0 || filters.length > 0;
 
-  // Clear search results synchronously when query is cleared
-  const [prevHasQuery, setPrevHasQuery] = useState(hasQuery);
-  if (hasQuery !== prevHasQuery) {
-    setPrevHasQuery(hasQuery);
-    if (!hasQuery) setSearchResults([]);
-  }
+  const tagFilter = filters.find((f) => f.kind === 'tag');
+  const ingFilter = filters.find((f) => f.kind === 'ingredient');
 
-  // Fetch initial random suggestions
-  useEffect(() => {
-    getRecipes().then((recipes) => {
-      const others = recipes.filter((r) => r.id !== currentRecipeId);
-      const shuffled = [...others].sort(() => Math.random() - 0.5);
-      setInitialSuggestions(shuffled.slice(0, 5));
-    });
-  }, [currentRecipeId]);
+  const excludeIds = [currentRecipeId, ...menuRecipeIds];
+  const { data: suggestions } = useRecipeSuggestions(excludeIds, 5);
+  const { data: filteredRecipes } = useRecipes(
+    hasQuery ? search || undefined : '__skip__',
+    tagFilter?.kind === 'tag' ? tagFilter.value : undefined,
+    ingFilter?.kind === 'ingredient' ? ingFilter.id : undefined
+  );
 
-  // Fetch search results when search or filters change
-  useEffect(() => {
-    if (!hasQuery) return;
-    const tagFilter = filters.find((f) => f.kind === 'tag');
-    const ingFilter = filters.find((f) => f.kind === 'ingredient');
-    getRecipes(
-      search || undefined,
-      tagFilter?.kind === 'tag' ? tagFilter.value : undefined,
-      ingFilter?.kind === 'ingredient' ? ingFilter.id : undefined
-    ).then((results) => {
-      setSearchResults(results.filter((r) => r.id !== currentRecipeId));
-    });
-  }, [search, filters, currentRecipeId, hasQuery]);
+  const searchResults =
+    filteredRecipes && hasQuery ? filteredRecipes.filter((r) => r.id !== currentRecipeId) : [];
 
-  const displayList = hasQuery ? searchResults : initialSuggestions;
+  const displayList = hasQuery ? searchResults : (suggestions ?? []);
 
   return (
     <div className="border border-brand-200 bg-brand-50 rounded-lg p-3 mt-2 min-w-0">
@@ -155,11 +134,9 @@ function ServingsBadge({
   const handleOpen = () => {
     setValue(String(effective));
     setEditing(true);
+    // Focus after render
+    setTimeout(() => inputRef.current?.focus(), 0);
   };
-
-  useEffect(() => {
-    if (editing) inputRef.current?.focus();
-  }, [editing]);
 
   const handleCommit = () => {
     setEditing(false);
@@ -209,25 +186,20 @@ function ServingsBadge({
 }
 
 export default function MenuView() {
-  const [menu, setMenu] = useState<Menu | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: menu, error, isLoading } = useCurrentMenu();
   const [generating, setGenerating] = useState(false);
   const [servings, setServings] = useState<number | ''>(4);
   const [pickerSlotId, setPickerSlotId] = useState<number | null>(null);
   const [addingDay, setAddingDay] = useState<number | null>(null);
   const toast = useToast();
-
-  useEffect(() => {
-    getCurrentMenu()
-      .then(setMenu)
-      .finally(() => setLoading(false));
-  }, []);
+  const { mutate } = useSWRConfig();
+  const menuRecipeIds = useMemo(() => menu?.slots.map((s) => s.recipe.id) ?? [], [menu]);
 
   const handleGenerate = async () => {
     setGenerating(true);
     try {
       const m = await generateMenu(getNextMonday(), servings || 4);
-      setMenu(m);
+      mutate(currentMenuKey(), m, false);
       toast('Menu generated!');
     } catch (err) {
       toast(err instanceof Error ? err.message : 'An error occurred', 'error');
@@ -238,7 +210,7 @@ export default function MenuView() {
   const handleReroll = async (slotId: number) => {
     if (!menu) return;
     const updated = await updateMenuSlot(menu.id, slotId, { reroll: true });
-    setMenu(updated);
+    mutate(currentMenuKey(), updated, false);
     setPickerSlotId(null);
     toast('Meal swapped');
   };
@@ -246,7 +218,7 @@ export default function MenuView() {
   const handlePickRecipe = async (slotId: number, recipeId: number) => {
     if (!menu) return;
     const updated = await updateMenuSlot(menu.id, slotId, { recipe_id: recipeId });
-    setMenu(updated);
+    mutate(currentMenuKey(), updated, false);
     setPickerSlotId(null);
     toast('Recipe changed');
   };
@@ -254,13 +226,13 @@ export default function MenuView() {
   const handleServingsOverride = async (slotId: number, servingsOverride: number | null) => {
     if (!menu) return;
     const updated = await updateMenuSlot(menu.id, slotId, { servings_override: servingsOverride });
-    setMenu(updated);
+    mutate(currentMenuKey(), updated, false);
   };
 
   const handleDeleteSlot = async (slotId: number) => {
     if (!menu) return;
     const updated = await deleteMenuSlot(menu.id, slotId);
-    setMenu(updated);
+    mutate(currentMenuKey(), updated, false);
     setPickerSlotId(null);
     toast('Meal removed');
   };
@@ -268,7 +240,7 @@ export default function MenuView() {
   const handleAddSlot = async (dayIdx: number, recipeId: number) => {
     if (!menu) return;
     const updated = await createMenuSlot(menu.id, { day: dayIdx, recipe_id: recipeId });
-    setMenu(updated);
+    mutate(currentMenuKey(), updated, false);
     setAddingDay(null);
     toast('Meal added');
   };
@@ -304,8 +276,20 @@ export default function MenuView() {
         </div>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <MenuSkeleton />
+      ) : error ? (
+        <div className="text-center py-16">
+          <div className="text-6xl mb-4">📡</div>
+          <h2 className="text-xl font-semibold text-gray-700 mb-2">Unable to load menu</h2>
+          <p className="text-gray-500 mb-6">Check your connection and try again.</p>
+          <button
+            onClick={() => mutate(currentMenuKey())}
+            className="bg-gradient-to-r from-brand-500 to-brand-600 text-white px-6 py-3 rounded-xl font-medium hover:from-brand-600 hover:to-brand-700 transition-all shadow-sm"
+          >
+            Retry
+          </button>
+        </div>
       ) : menu ? (
         <>
           <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -405,6 +389,7 @@ export default function MenuView() {
                         {isPickerOpen && (
                           <RecipePicker
                             currentRecipeId={slot.recipe.id}
+                            menuRecipeIds={menuRecipeIds}
                             onPick={(recipeId) => handlePickRecipe(slot.id, recipeId)}
                             onReroll={() => handleReroll(slot.id)}
                             onClose={() => setPickerSlotId(null)}
@@ -416,6 +401,7 @@ export default function MenuView() {
                   {isAddingHere && (
                     <RecipePicker
                       currentRecipeId={-1}
+                      menuRecipeIds={menuRecipeIds}
                       onPick={(recipeId) => handleAddSlot(dayIdx, recipeId)}
                       onReroll={() => {}}
                       onClose={() => setAddingDay(null)}

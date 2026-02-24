@@ -9,7 +9,7 @@ import type {
   ShoppingList,
 } from './types';
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
+export async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     credentials: 'include',
     ...options,

@@ -1,6 +1,8 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { createIngredient, createRecipe, getIngredients, getRecipe, updateRecipe } from '../api';
+import { useSWRConfig } from 'swr';
+import { createIngredient, createRecipe, updateRecipe } from '../api';
+import { ingredientsKey, useIngredients, useRecipe } from '../hooks';
 import { useToast } from './Toast';
 import type { Ingredient, RecipeIngredientInput } from '../types';
 
@@ -160,6 +162,7 @@ export default function RecipeForm() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const toast = useToast();
+  const { mutate } = useSWRConfig();
   const isEdit = !!id;
 
   const [name, setName] = useState('');
@@ -175,33 +178,38 @@ export default function RecipeForm() {
   const [allIngredients, setAllIngredients] = useState<Ingredient[]>([]);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    getIngredients().then(setAllIngredients);
-  }, []);
+  const { data: fetchedIngredients } = useIngredients();
+  const { data: editRecipe } = useRecipe(isEdit ? Number(id) : undefined);
 
-  useEffect(() => {
-    if (isEdit) {
-      getRecipe(Number(id)).then((r) => {
-        setName(r.name);
-        setDescription(r.description || '');
-        setServings(r.servings);
-        setPrepTime(r.prep_time_minutes || '');
-        setCookTime(r.cook_time_minutes || '');
-        setInstructions(r.instructions);
-        setTags(r.tags.join(', '));
-        setSourceUrl(r.source_url || '');
-        setFreezable(r.freezable);
-        setIngredientRows(
-          r.ingredients.map((ri) => ({
-            ingredient_id: ri.ingredient_id,
-            amount: ri.amount,
-            unit: ri.unit,
-            name: ri.ingredient.name,
-          }))
-        );
-      });
-    }
-  }, [id, isEdit]);
+  // Sync fetched ingredients into local state (render-time sync)
+  const [prevFetchedIngredients, setPrevFetchedIngredients] = useState(fetchedIngredients);
+  if (fetchedIngredients !== prevFetchedIngredients) {
+    setPrevFetchedIngredients(fetchedIngredients);
+    if (fetchedIngredients) setAllIngredients(fetchedIngredients);
+  }
+
+  // Populate form fields when editing (render-time sync)
+  const [populatedId, setPopulatedId] = useState<string | null>(null);
+  if (editRecipe && id && populatedId !== id) {
+    setPopulatedId(id);
+    setName(editRecipe.name);
+    setDescription(editRecipe.description || '');
+    setServings(editRecipe.servings);
+    setPrepTime(editRecipe.prep_time_minutes || '');
+    setCookTime(editRecipe.cook_time_minutes || '');
+    setInstructions(editRecipe.instructions);
+    setTags(editRecipe.tags.join(', '));
+    setSourceUrl(editRecipe.source_url || '');
+    setFreezable(editRecipe.freezable);
+    setIngredientRows(
+      editRecipe.ingredients.map((ri) => ({
+        ingredient_id: ri.ingredient_id,
+        amount: ri.amount,
+        unit: ri.unit,
+        name: ri.ingredient.name,
+      }))
+    );
+  }
 
   const addIngredientRow = () => {
     setIngredientRows([
@@ -248,6 +256,7 @@ export default function RecipeForm() {
       rows[index] = { ...rows[index], ingredient_id: created.id, name: created.name };
       setIngredientRows(rows);
       toast(`Added "${created.name}" to ingredients`);
+      mutate(ingredientsKey());
     } catch (err) {
       toast(err instanceof Error ? err.message : 'An error occurred', 'error');
     }

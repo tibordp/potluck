@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { useSWRConfig } from 'swr';
 import { clearAllData, exportData, importData } from '../api';
 import { useUnitSystem } from '../helpers';
 import type { UnitSystem } from '../helpers';
@@ -12,6 +13,7 @@ const UNIT_OPTIONS: { value: UnitSystem; label: string; description: string }[] 
 export default function Settings({ onLogout }: { onLogout: () => void }) {
   const [unitSystem, setUnitSystem] = useUnitSystem();
   const toast = useToast();
+  const { mutate } = useSWRConfig();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [clearing, setClearing] = useState(false);
   const [clearConfirmText, setClearConfirmText] = useState('');
@@ -48,6 +50,7 @@ export default function Settings({ onLogout }: { onLogout: () => void }) {
       toast(
         `Imported: ${result.ingredients_created} ingredients created, ${result.ingredients_updated} updated, ${result.recipes_created} recipes created`
       );
+      mutate(() => true, undefined, { revalidate: true });
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Import failed', 'error');
     } finally {
@@ -63,6 +66,7 @@ export default function Settings({ onLogout }: { onLogout: () => void }) {
       toast('All data cleared');
       setClearing(false);
       setClearConfirmText('');
+      mutate(() => true, undefined, { revalidate: true });
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Clear failed', 'error');
     } finally {

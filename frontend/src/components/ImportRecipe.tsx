@@ -1,20 +1,22 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useSWRConfig } from 'swr';
 import {
   createIngredient,
   createRecipe,
-  getIngredients,
   importFromImage,
   importFromText,
   importFromUrl,
 } from '../api';
 import { useToast } from './Toast';
 import { tagClasses, tagEmoji } from '../helpers';
+import { ingredientsKey, useIngredients } from '../hooks';
 import type { Ingredient, ParsedRecipe } from '../types';
 
 export default function ImportRecipe() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { mutate } = useSWRConfig();
   const [mode, setMode] = useState<'url' | 'text' | 'scan'>('url');
   const [url, setUrl] = useState('');
   const [text, setText] = useState('');
@@ -27,9 +29,14 @@ export default function ImportRecipe() {
   const [ingredientMap, setIngredientMap] = useState<Record<number, number>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    getIngredients().then(setAllIngredients);
-  }, []);
+  const { data: fetchedIngredients } = useIngredients();
+
+  // Sync fetched ingredients into local state (render-time sync)
+  const [prevFetchedIngredients, setPrevFetchedIngredients] = useState(fetchedIngredients);
+  if (fetchedIngredients !== prevFetchedIngredients) {
+    setPrevFetchedIngredients(fetchedIngredients);
+    if (fetchedIngredients) setAllIngredients(fetchedIngredients);
+  }
 
   // Handle share target params
   useEffect(() => {
@@ -119,6 +126,8 @@ export default function ImportRecipe() {
           finalMap[i] = created.id;
         }
       }
+
+      mutate(ingredientsKey());
 
       const recipe = await createRecipe({
         name: parsed.name,

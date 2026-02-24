@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { getIngredients } from '../api';
 import { ALL_TAGS, tagClasses, tagEmoji } from '../helpers';
+import { useIngredientSearch } from '../hooks';
 import type { Ingredient } from '../types';
 
 export type SearchFilter =
@@ -28,29 +28,31 @@ export default function RecipeSearchBar({
 }) {
   const [open, setOpen] = useState(false);
   const [highlightIdx, setHighlightIdx] = useState(0);
-  const [ingredientResults, setIngredientResults] = useState<Ingredient[]>([]);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const query = search.trim().toLowerCase();
 
-  // Clear ingredient results synchronously when query is empty
+  // Clear debounced query synchronously when query is empty
   const [prevQuery, setPrevQuery] = useState(query);
   if (query !== prevQuery) {
     setPrevQuery(query);
-    if (!query) setIngredientResults([]);
+    if (!query) setDebouncedQuery('');
   }
 
-  // Debounced ingredient search
+  // Debounce the query for ingredient search
   useEffect(() => {
     if (!query) return;
     clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      getIngredients(query).then(setIngredientResults);
+      setDebouncedQuery(query);
     }, 200);
     return () => clearTimeout(debounceRef.current);
   }, [query]);
+
+  const { data: ingredientResults } = useIngredientSearch(debouncedQuery);
 
   // Click outside
   useEffect(() => {
@@ -74,10 +76,10 @@ export default function RecipeSearchBar({
       }))
     : [];
 
-  const ingredientSuggestions = ingredientResults
-    .filter((i) => !selectedIngIds.has(i.id))
+  const ingredientSuggestions = (ingredientResults ?? [])
+    .filter((i: Ingredient) => !selectedIngIds.has(i.id))
     .slice(0, 6)
-    .map((i) => ({ type: 'ingredient' as const, id: i.id, name: i.name }));
+    .map((i: Ingredient) => ({ type: 'ingredient' as const, id: i.id, name: i.name }));
 
   const suggestions = [...tagSuggestions, ...ingredientSuggestions];
 
