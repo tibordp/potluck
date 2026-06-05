@@ -5,6 +5,8 @@ kind: Gateway
 metadata:
   name: potluck
   namespace: potluck
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
 spec:
   gatewayClassName: traefik
   listeners:
