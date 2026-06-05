@@ -1,0 +1,45 @@
+# Traefik / Gateway API equivalent of the potluck Ingress (additive).
+# (nginx proxy-body-size dropped — Traefik streams with no body limit by default.)
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: potluck
+  namespace: potluck
+spec:
+  gatewayClassName: traefik
+  listeners:
+    - name: https
+      protocol: HTTPS
+      port: 443
+      hostname: potluck.ojdip.net
+      tls:
+        mode: Terminate
+        certificateRefs:
+          - kind: Secret
+            name: potluck-tls
+      allowedRoutes:
+        namespaces:
+          from: Same
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: potluck
+  namespace: potluck
+spec:
+  parentRefs:
+    - name: potluck
+      sectionName: https
+  hostnames:
+    - potluck.ojdip.net
+  rules:
+    - matches:
+        - path: { type: PathPrefix, value: /api }
+      backendRefs:
+        - name: backend
+          port: 8000
+    - matches:
+        - path: { type: PathPrefix, value: / }
+      backendRefs:
+        - name: frontend
+          port: 80
