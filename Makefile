@@ -3,11 +3,14 @@ BACKEND_IMAGE := $(REGISTRY)/potluck-backend:latest
 FRONTEND_IMAGE := $(REGISTRY)/potluck-frontend:latest
 NAMESPACE := potluck
 
+# Cluster nodes are x86; pin the build platform so Apple Silicon doesn't ship arm64 images.
+PLATFORM := linux/amd64
+
 .PHONY: build push secrets deploy rollout all lint format
 
 build:
-	docker build -t $(BACKEND_IMAGE) ./backend
-	docker build -t $(FRONTEND_IMAGE) ./frontend
+	docker build --platform=$(PLATFORM) -t $(BACKEND_IMAGE) ./backend
+	docker build --platform=$(PLATFORM) -t $(FRONTEND_IMAGE) ./frontend
 
 push: build
 	docker push $(BACKEND_IMAGE)
